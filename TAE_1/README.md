@@ -2,6 +2,8 @@
 
 This project demonstrates Script-Based Knowledge Representation in Artificial Intelligence.
 
+Visit app - https://atm-predictor.streamlit.app/
+
 Features:
 - ATM Transaction Simulation
 - AI Prediction of Next User Action
@@ -18,3 +20,4 @@ Tech Stack:
 Run Locally:
 pip install -r requirements.txt
 streamlit run app.py
+
