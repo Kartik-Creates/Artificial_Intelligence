@@ -1,149 +1,220 @@
 import streamlit as st
 import random
 import datetime
-from scripts import atm_scripts, accounts, predict_next_action
+from scripts import atm_scripts, predict_next_action
 
 st.set_page_config(page_title="AI ATM Simulator", layout="wide")
 
-st.title("🤖 AI Powered ATM Transaction System")
+st.title("🤖 AI ATM Transaction Simulator")
 
-# session variables
+# CARD VERIFICATION
+if not st.session_state.card_verified:
+
+    card_number = st.text_input("Enter 12 Digit ATM Card Number")
+
+    if st.button("Insert Card"):
+
+        # check card format
+        if len(card_number) != 12 or not card_number.isdigit():
+            st.error("Card number must be 12 digits")
+
+        elif card_number in accounts:
+
+            # load user data
+            st.session_state.user = accounts[card_number]
+            st.session_state.card_verified = True
+
+            st.success(f"Welcome {accounts[card_number]['name']}")
+
+        else:
+            st.error("Invalid Card Number")
+
+# PIN VERIFICATION
+elif not st.session_state.pin_verified:
+
+    pin = st.text_input("Enter 4 Digit PIN", type="password")
+
+    if st.button("Verify PIN"):
+
+        if pin == st.session_state.user["pin"]:
+
+            st.session_state.pin_verified = True
+            st.success("PIN Verified Successfully")
+
+        else:
+            st.error("Incorrect PIN")
+
+# initialize session variables
 if "step" not in st.session_state:
     st.session_state.step = 0
 
-if "user" not in st.session_state:
-    st.session_state.user = None
+if "balance" not in st.session_state:
+    st.session_state.balance = 25000
 
-if "card_verified" not in st.session_state:
-    st.session_state.card_verified = False
-
-if "pin_verified" not in st.session_state:
-    st.session_state.pin_verified = False
+if "transaction_type" not in st.session_state:
+    st.session_state.transaction_type = "Withdraw Cash"
 
 if "amount" not in st.session_state:
     st.session_state.amount = 0
 
+# transaction selection
+st.session_state.transaction_type = st.selectbox(
+    "Select Transaction Type",
+    list(atm_scripts.keys())
+)
+
+script = atm_scripts[st.session_state.transaction_type]
+
+# reset step if transaction type changes
+if st.session_state.step >= len(script):
+    st.session_state.step = 0
+
+current_step = script[st.session_state.step]
+
 col1, col2 = st.columns(2)
 
-# LEFT SIDE (ATM INTERFACE)
+# LEFT SIDE - ATM INTERFACE
 with col1:
 
     st.subheader("🏧 ATM Interface")
 
-    # CARD VERIFICATION
-    if not st.session_state.card_verified:
+    st.write("Current Balance: ₹", st.session_state.balance)
 
-        card = st.text_input("Enter 12 Digit Card Number")
+    st.write("Current Step:", current_step)
+
+    # INSERT CARD
+    if current_step == "Insert Card":
 
         if st.button("Insert Card"):
+            st.session_state.step += 1
+            st.rerun()
 
-            if card in accounts:
-                st.session_state.user = accounts[card]
-                st.session_state.card_verified = True
-                st.success(f"Welcome {accounts[card]['name']}")
-                st.session_state.current_step = "Insert Card"
-
-            else:
-                st.error("Invalid Card Number")
-
-    # PIN VERIFICATION
-    elif not st.session_state.pin_verified:
+    # ENTER PIN
+    elif current_step == "Enter PIN":
 
         pin = st.text_input("Enter 4 Digit PIN", type="password")
 
-        if st.button("Enter PIN"):
+        if st.button("Submit PIN") and len(pin) == 4:
+            st.session_state.step += 1
+            st.rerun()
 
-            if pin == st.session_state.user["pin"]:
-                st.session_state.pin_verified = True
-                st.success("PIN Verified")
-                st.session_state.current_step = "Enter PIN"
+    # WITHDRAW OPTION
+    elif current_step == "Select Withdraw":
 
-            else:
-                st.error("Incorrect PIN")
+        if st.button("Withdraw Cash"):
+            st.session_state.step += 1
+            st.rerun()
 
-    # TRANSACTIONS
-    else:
+    # DEPOSIT OPTION
+    elif current_step == "Select Deposit":
 
-        st.write("Account Holder:", st.session_state.user["name"])
-        st.write("Balance: ₹", st.session_state.user["balance"])
+        if st.button("Deposit Money"):
+            st.session_state.step += 1
+            st.rerun()
 
-        transaction_type = st.selectbox(
-            "Select Transaction",
-            list(atm_scripts.keys())
+    # CHECK BALANCE
+    elif current_step == "Check Balance":
+
+        if st.button("Check Balance"):
+            st.session_state.step += 1
+            st.rerun()
+
+    # ENTER AMOUNT
+    elif current_step == "Enter Amount":
+
+        amount = st.number_input("Enter Amount", min_value=100, step=100)
+
+        if st.button("Confirm Amount"):
+
+            st.session_state.amount = amount
+            st.session_state.step += 1
+            st.rerun()
+
+    # CONFIRM TRANSACTION
+    elif current_step == "Confirm Transaction":
+
+        if st.session_state.amount > st.session_state.balance:
+            st.error("Insufficient Balance")
+        else:
+            if st.button("Confirm Withdrawal"):
+                st.session_state.balance -= st.session_state.amount
+                st.session_state.step += 1
+                st.rerun()
+
+    # CONFIRM DEPOSIT
+    elif current_step == "Confirm Deposit":
+
+        if st.button("Confirm Deposit"):
+            st.session_state.balance += st.session_state.amount
+            st.session_state.step += 1
+            st.rerun()
+
+    # DISPENSE CASH
+    elif current_step == "Dispense Cash":
+
+        st.success(f"₹{st.session_state.amount} Dispensed Successfully")
+
+        if st.button("Continue"):
+            st.session_state.step += 1
+            st.rerun()
+
+    # DISPLAY BALANCE
+    elif current_step == "Display Balance":
+
+        st.success(f"Your Balance is ₹{st.session_state.balance}")
+
+        if st.button("Continue"):
+            st.session_state.step += 1
+            st.rerun()
+
+    # PRINT RECEIPT
+    elif current_step == "Print Receipt":
+
+        st.success("Receipt Generated")
+
+        txn_id = random.randint(100000, 999999)
+
+        receipt = f"""
+        -----------------------------
+              ATM TRANSACTION
+        -----------------------------
+        Transaction ID : {txn_id}
+        Date : {datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")}
+
+        Transaction Type : {st.session_state.transaction_type}
+
+        Amount : ₹{st.session_state.amount}
+
+        Available Balance : ₹{st.session_state.balance}
+
+        Status : SUCCESS
+        -----------------------------
+        Thank You For Banking
+        -----------------------------
+        """
+
+        st.code(receipt)
+
+        st.download_button(
+            label="Download Receipt",
+            data=receipt,
+            file_name="atm_receipt.txt",
+            mime="text/plain"
         )
 
-        script = atm_scripts[transaction_type]
-
-        current_step = st.selectbox("Current Step", script)
-
-        # WITHDRAW
-        if current_step == "Enter Amount":
-
-            amount = st.number_input("Enter Amount", min_value=100)
-
-            if st.button("Confirm Amount"):
-                st.session_state.amount = amount
-
-        if current_step == "Confirm Transaction":
-
-            if st.button("Confirm Withdrawal"):
-
-                if st.session_state.amount > st.session_state.user["balance"]:
-                    st.error("Insufficient Balance")
-
-                else:
-                    st.session_state.user["balance"] -= st.session_state.amount
-                    st.success("Cash Dispensed")
-
-        # DEPOSIT
-        if current_step == "Confirm Deposit":
-
-            if st.button("Confirm Deposit"):
-                st.session_state.user["balance"] += st.session_state.amount
-                st.success("Deposit Successful")
-
-        # DISPLAY BALANCE
-        if current_step == "Display Balance":
-            st.success(f"Your Balance is ₹{st.session_state.user['balance']}")
-
-        # PRINT RECEIPT
-        if current_step == "Print Receipt":
-
-            txn_id = random.randint(100000, 999999)
-
-            receipt = f"""
--------------------------------
-ATM TRANSACTION RECEIPT
--------------------------------
-Transaction ID: {txn_id}
-Name: {st.session_state.user['name']}
-Transaction Type: {transaction_type}
-Amount: ₹{st.session_state.amount}
-Balance: ₹{st.session_state.user['balance']}
-Date: {datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")}
-Status: SUCCESS
--------------------------------
-"""
-
-            st.code(receipt)
-
-            st.download_button(
-                label="Download Receipt",
-                data=receipt,
-                file_name="atm_receipt.txt",
-                mime="text/plain"
-            )
+        if st.button("Finish Transaction"):
+            st.session_state.step = 0
+            st.session_state.amount = 0
+            st.rerun()
 
 
-# RIGHT SIDE (AI PREDICTION)
+# RIGHT SIDE - AI PREDICTION
 with col2:
 
     st.subheader("🧠 AI Prediction Engine")
 
-    if st.session_state.card_verified and st.session_state.pin_verified:
+    prediction = predict_next_action(script, current_step)
 
-        try:
-            prediction = predict_next_action(script, current_step)
-            st.info(f"Predicted Next Step: {prediction}")
-        except:
-            st.write("Start transaction to see prediction")
+    st.info(f"Predicted Next Step: {prediction}")
+
+    st.write("AI is predicting the next user action based on stored transaction scripts.")
