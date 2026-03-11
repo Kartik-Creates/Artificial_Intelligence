@@ -3,6 +3,19 @@ import random
 import datetime
 from scripts import atm_scripts, predict_next_action
 
+# Initialize session variables
+if "card_verified" not in st.session_state:
+    st.session_state.card_verified = False
+
+if "pin_verified" not in st.session_state:
+    st.session_state.pin_verified = False
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+if "amount" not in st.session_state:
+    st.session_state.amount = 0
+
 st.set_page_config(page_title="AI ATM Simulator", layout="wide")
 
 st.title("🤖 AI ATM Transaction Simulator")
